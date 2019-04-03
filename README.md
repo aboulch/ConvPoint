@@ -1,10 +1,17 @@
 # ConvPoint: Generalizing discrete convolutions for unstructured point clouds
 
+
+![SnapNet products](./doc/convPoint.png)
+
 ## Introduction
+
+This repository propose python scripts for point cloud classification and segmentation. The library is coded with PyTorch.
+
 
 ## License
 
 Code is released under dual license depending on applications, research or commercial. Reseach license is GPLv3.
+See the [license](LICENSE.md).
 
 ## Citation
 
