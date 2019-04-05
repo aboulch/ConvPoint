@@ -7,6 +7,9 @@
 
 This repository propose python scripts for point cloud classification and segmentation. The library is coded with PyTorch.
 
+A preprint of the paper can be found on Arxiv:  
+http://arxiv.org/abs/1904.02375
+
 
 ## License
 
@@ -33,6 +36,7 @@ If you use this code in your research, please consider citing:
 - Scikit-learn for confusion matrix computation, and efficient neighbors search
 - Trimesh (for Modelnet40) for loading triangular meshes and sampling points    
 - TQDM for progress bars
+- PlyFile
 
 All these dependencies can be install via conda in an Anaconda environment or via pip.
 
@@ -64,3 +68,57 @@ For testing with more than one tree per shape: *(this code is not optimized at a
 python modelnet_classif.py --rootdir path_to_modelnet40_data --savedir path_to_statedict_directory --test --ntree 2
 ```
 
+### ShapeNet
+
+#### Data preparation
+
+The script for downloading and preparing the point clouds are from *PointCNN* repository https://github.com/yangyanli/PointCNN[](https://github.com/yangyanli/PointCNN).
+They are in the ```data_conversions``` folder.
+
+```
+python3 ./download_datasets.py -d shapenet_partseg -f path_to_directory
+python3 ./prepare_partseg_data.py -f path_to_shapenet_partseg
+```
+
+#### Training
+
+The training script is ```shapenet_seg.py```:
+
+```
+python shapenet_seg.py --savedir path_to_save_directory --rootdir path_to_shapenet_partseg
+```
+
+#### Testing
+
+- **Inference**
+
+Testing is a two-step process. First, inference with ```shapenet_seg.py``` script:
+
+```
+python shapenet_seg.py --savedir path_to_model_directory  --rootdir path_to_shapenet_partseg --test
+```
+You can also use the ```--ply``` flag to generate PLY file for result visualization.
+
+The previous command line is result with one spatial tree. To test with multiple spatial trees, use the  ```--ntree``` flag:
+
+```
+python shapenet_seg.py --savedir path_to_model_directory  --rootdir path_to_shapenet_partseg --test --ntree 4
+```
+
+- **Scores**
+
+The scores computation scripts are also adapted from *PointCNN* repository https://github.com/yangyanli/PointCNN[](https://github.com/yangyanli/PointCNN).
+
+```
+python shapenet_seg_eval.py --rootdir path_to_shapenet_partseg --preddir path_to_predictions
+```
+
+You can also compute the part average scores using the flag ```--part_av```.
+
+### S3DIS
+
+**Code to be released**
+
+### Semantic8
+
+**Code to be released**
