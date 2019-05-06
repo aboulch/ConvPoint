@@ -198,7 +198,6 @@ def main():
         cm = np.zeros((N_LABELS, N_LABELS))
 
         for pts, features, targets, tree in t:
-            continue
             if args.cuda:
                 features = features.cuda()
                 pts = pts.cuda()
