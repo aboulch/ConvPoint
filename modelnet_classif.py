@@ -164,6 +164,7 @@ def main():
 
     print("Preprocessing off files")
     # some files may have first line "OFF122.." instead of "OFF\n122..."
+    count_bad_files = 0
     for filename in tqdm(train_files, ncols=100):
         f = open(filename, 'r')
         line = f.readline()
@@ -174,6 +175,8 @@ def main():
         f = open(filename, "w")
         f.write("".join(lines))
         f.close()
+        count_bad_files += 1
+    print("  number of modified files:", count_bad_files)
 
     print("Creating dataloaders...", end="")
     ds = PointCloudFileLists(train_files, config=net.config, pt_nbr=args.npoints, labels=labels)
@@ -195,7 +198,7 @@ def main():
         cm = np.zeros((N_LABELS, N_LABELS))
 
         for pts, features, targets, tree in t:
-
+            continue
             if args.cuda:
                 features = features.cuda()
                 pts = pts.cuda()
