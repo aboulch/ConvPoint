@@ -174,16 +174,6 @@ def main():
         f = open(filename, "w")
         f.write("".join(lines))
         f.close()
-    for filename in tqdm(test_files, ncols=100):
-        f = open(filename, 'r')
-        line = f.readline()
-        if line == "OFF\n":
-            continue
-        lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
-        f.close()
-        f = open(filename, "w")
-        f.write("".join(lines))
-        f.close()
 
     print("Creating dataloaders...", end="")
     ds = PointCloudFileLists(train_files, config=net.config, pt_nbr=args.npoints, labels=labels)
