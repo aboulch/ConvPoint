@@ -33,10 +33,10 @@ If you use this code in your research, please consider citing:
 ## Dependencies
 
 - Pytorch
-- Scikit-learn for confusion matrix computation, and efficient neighbors search
-- Trimesh (for Modelnet40) for loading triangular meshes and sampling points    
+- Scikit-learn for confusion matrix computation, and efficient neighbors search  
 - TQDM for progress bars
 - PlyFile
+- H5py
 
 All these dependencies can be install via conda in an Anaconda environment or via pip.
 
@@ -45,7 +45,7 @@ All these dependencies can be install via conda in an Anaconda environment or vi
 ## Usage
 
 We propose scripts for training on several point cloud datasets:
-- ModelNet40 (meshes can be found [here](http://modelnet.cs.princeton.edu/)). The meshes are sampled in the code using Trimesh.
+- ModelNet40 (meshes can be found here [https://shapenet.cs.stanford.edu/media/modelnet40_ply_hdf5_2048.zip](https://shapenet.cs.stanford.edu/media/modelnet40_ply_hdf5_2048.zip)). The meshes are sampled in the code using Trimesh.
 - ShapeNet *(code to be added)*
 - S3DIS *(code to be added)*
 - Semantic8 *(code to added)*

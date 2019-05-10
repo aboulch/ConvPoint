@@ -9,12 +9,35 @@ import os
 from tqdm import tqdm
 import argparse
 from datetime import datetime
-import trimesh
 from sklearn.metrics import confusion_matrix
 
 import metrics
 from tree import computeTree, tree_collate
 from network_classif import Net
+
+import h5py
+
+
+def get_data(rootdir, files):
+
+    train_filenames = []
+    for line in open(os.path.join(rootdir, files), "r"):
+        line = line.split("\n")[0]
+        line = os.path.basename(line)
+        train_filenames.append(os.path.join(rootdir, line))
+
+    data = []
+    labels = []
+    for filename in train_filenames:
+        f = h5py.File(filename, 'r')
+        data.append(f["data"])
+        labels.append(f["label"])
+
+    data = np.concatenate(data, axis=0)
+    labels = np.concatenate(labels, axis=0)
+
+    return data, labels
+
 
 
 
@@ -42,28 +65,25 @@ def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
 class PointCloudFileLists(torch.utils.data.Dataset):
     """Main Class for Image Folder loader."""
 
-    def __init__(self, filenames, config, pt_nbr=1000, training=True, labels=None):
+    def __init__(self, data, labels, config, pt_nbr=1024, training=True):
         """Init function."""
 
-        self.filenames = filenames
+        self.data = data
+        self.labels = labels
         self.training = training
         self.pt_nbr = pt_nbr
-
-        self.labels = labels
-        if labels is None:
-            raise Exception("Missing Labels Exception")
-
         self.config = config
 
     def __getitem__(self, index):
         """Get item."""
 
         # get the filename
-        filename = self.filenames[index]
+        pts = self.data[index]
+        target = self.labels[index]
 
-        # load the mesh and sample the points
-        mesh = trimesh.load(filename)
-        pts = trimesh.sample.sample_surface(mesh, self.pt_nbr)[0]
+
+        indices = np.random.choice(pts.shape[0], self.pt_nbr)
+        pts = pts[indices]
 
         # create features
         features = np.ones((pts.shape[0], 1))
@@ -75,13 +95,6 @@ class PointCloudFileLists(torch.utils.data.Dataset):
         # create the tree
         tree = computeTree(pts, self.config)
 
-        # get the label
-        target = -1
-        for label_id, label in enumerate(self.labels):
-            if label in filename:
-                target = label_id
-        assert len(self.labels)==0 or target != -1
-
         # convert to torch
         pts = torch.from_numpy(pts).float().unsqueeze(0)
         target = torch.Tensor([target]).long().unsqueeze(0)
@@ -92,11 +105,8 @@ class PointCloudFileLists(torch.utils.data.Dataset):
 
     def __len__(self):
         """Length."""
-        return len(self.filenames)
+        return self.data.shape[0]
 
-    def get_filename(self, id):
-        """Get the filename."""
-        return self.filenames[id]
 
 
 def main():
@@ -150,51 +160,58 @@ def main():
     print("Number of parameters", count_parameters(net))
 
 
-    print("Getting filenames...", end='')
-    rootdir_train = os.path.join(args.rootdir, "train")
-    rootdir_test = os.path.join(args.rootdir, "test")
-    train_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.rootdir) for f in filenames if os.path.splitext(f)[1] == '.off' and "train" in dp]
-    test_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.rootdir) for f in filenames if os.path.splitext(f)[1] == '.off' and "test" in dp]
-    train_files.sort()
-    test_files.sort()
+    print("Getting train files...")
+    train_data, train_labels = get_data(args.rootdir, "train_files.txt")
+    print(train_data.shape, train_labels.shape)
+    print("Getting test files...")
+    test_data, test_labels = get_data(args.rootdir, "test_files.txt")
+    print(test_data.shape, test_labels.shape)
     print("done")
-    print("train files:", len(train_files))
-    print("test files:", len(test_files))
 
+    # print("Getting filenames...", end='')
+    # rootdir_train = os.path.join(args.rootdir, "train")
+    # rootdir_test = os.path.join(args.rootdir, "test")
+    # train_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.rootdir) for f in filenames if os.path.splitext(f)[1] == '.off' and "train" in dp]
+    # test_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.rootdir) for f in filenames if os.path.splitext(f)[1] == '.off' and "test" in dp]
+    # train_files.sort()
+    # test_files.sort()
+    # print("done")
+    # print("train files:", len(train_files))
+    # print("test files:", len(test_files))
 
-    print("Preprocessing off files")
-    # some files may have first line "OFF122.." instead of "OFF\n122..."
-    count_bad_files = 0
-    for filename in tqdm(train_files, ncols=100):
-        f = open(filename, 'r')
-        line = f.readline()
-        if line == "OFF\n":
-            continue
-        lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
-        f.close()
-        f = open(filename, "w")
-        f.write("".join(lines))
-        f.close()
-        count_bad_files += 1
-    print("  number of modified files:", count_bad_files)
-    count_bad_files = 0
-    for filename in tqdm(test_files, ncols=100):
-        f = open(filename, 'r')
-        line = f.readline()
-        if line == "OFF\n":
-            continue
-        lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
-        f.close()
-        f = open(filename, "w")
-        f.write("".join(lines))
-        f.close()
-        count_bad_files += 1
-    print("  number of modified files:", count_bad_files)
+    # print("Preprocessing off files")
+    # # some files may have first line "OFF122.." instead of "OFF\n122..."
+    # count_bad_files = 0
+    # for filename in tqdm(train_files, ncols=100):
+    #     f = open(filename, 'r')
+    #     line = f.readline()
+    #     if line == "OFF\n":
+    #         continue
+    #     lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
+    #     f.close()
+    #     f = open(filename, "w")
+    #     f.write("".join(lines))
+    #     f.close()
+    #     count_bad_files += 1
+    # print("  number of modified files:", count_bad_files)
+    # count_bad_files = 0
+    # for filename in tqdm(test_files, ncols=100):
+    #     f = open(filename, 'r')
+    #     line = f.readline()
+    #     if line == "OFF\n":
+    #         continue
+    #     lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
+    #     f.close()
+    #     f = open(filename, "w")
+    #     f.write("".join(lines))
+    #     f.close()
+    #     count_bad_files += 1
+    # print("  number of modified files:", count_bad_files)
 
     print("Creating dataloaders...", end="")
-    ds = PointCloudFileLists(train_files, config=net.config, pt_nbr=args.npoints, labels=labels)
+    ds = PointCloudFileLists(train_data, train_labels, config=net.config, pt_nbr=args.npoints)
     train_loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=True, num_workers=THREADS, collate_fn=tree_collate)
-    ds_test = PointCloudFileLists(test_files, config=net.config, pt_nbr=args.npoints, training=False, labels=labels)
+    ds_test = PointCloudFileLists(test_data, test_labels, config=net.config, pt_nbr=args.npoints, training=False)
     test_loader = torch.utils.data.DataLoader(ds_test, batch_size=args.batchsize, shuffle=False, num_workers=THREADS, collate_fn=tree_collate)
     print("done")
 
