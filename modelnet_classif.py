@@ -168,45 +168,6 @@ def main():
     print(test_data.shape, test_labels.shape)
     print("done")
 
-    # print("Getting filenames...", end='')
-    # rootdir_train = os.path.join(args.rootdir, "train")
-    # rootdir_test = os.path.join(args.rootdir, "test")
-    # train_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.rootdir) for f in filenames if os.path.splitext(f)[1] == '.off' and "train" in dp]
-    # test_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.rootdir) for f in filenames if os.path.splitext(f)[1] == '.off' and "test" in dp]
-    # train_files.sort()
-    # test_files.sort()
-    # print("done")
-    # print("train files:", len(train_files))
-    # print("test files:", len(test_files))
-
-    # print("Preprocessing off files")
-    # # some files may have first line "OFF122.." instead of "OFF\n122..."
-    # count_bad_files = 0
-    # for filename in tqdm(train_files, ncols=100):
-    #     f = open(filename, 'r')
-    #     line = f.readline()
-    #     if line == "OFF\n":
-    #         continue
-    #     lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
-    #     f.close()
-    #     f = open(filename, "w")
-    #     f.write("".join(lines))
-    #     f.close()
-    #     count_bad_files += 1
-    # print("  number of modified files:", count_bad_files)
-    # count_bad_files = 0
-    # for filename in tqdm(test_files, ncols=100):
-    #     f = open(filename, 'r')
-    #     line = f.readline()
-    #     if line == "OFF\n":
-    #         continue
-    #     lines = ["OFF\n", line.split("OFF")[1]]+ list(f)
-    #     f.close()
-    #     f = open(filename, "w")
-    #     f.write("".join(lines))
-    #     f.close()
-    #     count_bad_files += 1
-    # print("  number of modified files:", count_bad_files)
 
     print("Creating dataloaders...", end="")
     ds = PointCloudFileLists(train_data, train_labels, config=net.config, pt_nbr=args.npoints)
