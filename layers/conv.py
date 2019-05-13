@@ -67,13 +67,17 @@ class PtConv(nn.Module):
         dists = F.relu(self.l1(dists))
         dists = F.relu(self.l2(dists))
         dists = F.relu(self.l3(dists))
-        dists = dists.unsqueeze(3)
 
-        # compute features
-        features = features.view(features.size()+(1,)) * dists
-        features = features.mean(2)
-        features = features.view(features.size()+(1,)) * self.weight
-        features = features.sum([2,3])
+         # compute features
+        fs = features.size()
+        features = features.transpose(2,3)
+        features = features.view(-1, features.size(2), features.size(3))
+        dists= dists.view(-1, dists.size(2), dists.size(3))
+
+        features = torch.bmm(features, dists).view(fs[0], fs[1], -1)
+
+        features = torch.matmul(features, self.weight)
+        features = features/ fs[2]
 
         # add a bias
         if self.use_bias:

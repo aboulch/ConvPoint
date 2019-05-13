@@ -3,6 +3,11 @@
 
 ![SnapNet products](./doc/convPoint.png)
 
+
+## Updates
+
+**Major performance update**: by reformulating the convolutional layer using matrix mulitplications, the memory consumption has been highly reduced.
+
 ## Introduction
 
 This repository propose python scripts for point cloud classification and segmentation. The library is coded with PyTorch.
