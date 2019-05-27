@@ -74,9 +74,11 @@ class PtConv(nn.Module):
         features = features.view(-1, features.size(2), features.size(3))
         dists= dists.view(-1, dists.size(2), dists.size(3))
 
-        features = torch.bmm(features, dists).view(fs[0], fs[1], -1)
+        features = torch.bmm(features, dists)
 
-        features = torch.matmul(features, self.weight)
+        features = features.view(fs[0], fs[1], -1)
+
+        features = torch.matmul(features, self.weight.view(-1, self.weight.size(2)))
         features = features/ fs[2]
 
         # add a bias
