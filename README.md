@@ -8,6 +8,8 @@
 
 **Major performance update**: by reformulating the convolutional layer using matrix mulitplications, the memory consumption has been highly reduced.
 
+**Major interface update**: the spatial relations are now computed in the network class. The framework is then easier to use and more flexible.
+
 ## Introduction
 
 This repository propose python scripts for point cloud classification and segmentation. The library is coded with PyTorch.
