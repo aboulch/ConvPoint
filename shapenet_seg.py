@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.neighbors import BallTree
 
 import metrics
-from network_seg import Net
+from network_seg import NetShapeNet as Net
 from tree import computeTree, tree_collate
 
 import utils.data_utils as data_utils
@@ -21,10 +21,28 @@ import utils.data_utils as data_utils
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+def rotate_point_cloud_z(batch_data):
+    """ Randomly rotate the point clouds to augument the dataset
+        rotation is per shape based along up direction
+        Input:
+          BxNx3 array, original batch of point clouds
+        Return:
+          BxNx3 array, rotated batch of point clouds
+    """
+    rotation_angle = np.random.uniform() * 2 * np.pi
+    cosval = np.cos(rotation_angle)
+    sinval = np.sin(rotation_angle)
+    rotation_matrix = np.array([[cosval, sinval, 0],
+                                [-sinval, cosval, 0],
+                                [0, 0, 1],])
+    return np.dot(batch_data, rotation_matrix)
+
+
+
 # in pointNet2 ==> 2500 points
 class PartNormalDataset():
 
-    def __init__ (self, data, data_num, label, config, npoints, shape_labels=None):
+    def __init__ (self, data, data_num, label, config, npoints, shape_labels=None, training=False):
 
         self.data = data
         self.data_num = data_num
@@ -32,6 +50,7 @@ class PartNormalDataset():
         self.config = config
         self.npoints = npoints
         self.shape_labels= shape_labels
+        self.training = training
 
     def __getitem__(self, index):
 
@@ -42,6 +61,9 @@ class PartNormalDataset():
         pts = pts[choice]
         lbs = self.label[index][choice]
         features = torch.ones(1, pts.shape[0], 1).float()
+
+        # if self.training:
+        #     pts = rotate_point_cloud_z(pts)
 
         tree = computeTree(pts, self.config, lbs)
         pts = torch.from_numpy(pts).float().unsqueeze(0)
@@ -93,7 +115,9 @@ def train(args):
     print("parameters", count_parameters(net))
 
 
-    ds = PartNormalDataset(data_train, data_num_train, label_train, net.config, npoints=args.npoints, shape_labels=labels)
+    ds = PartNormalDataset(data_train, data_num_train, label_train, net.config, 
+                                npoints=args.npoints, shape_labels=labels,
+                                training = True)
     train_loader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, shuffle=True,
                                             num_workers=THREADS,
                                             collate_fn=tree_collate
@@ -104,7 +128,7 @@ def train(args):
 
     # create the model folder
     time_string = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    root_folder = os.path.join(args.savedir, "Net_b{}_pts{}_{}".format(args.batchsize, args.npoints, time_string))
+    root_folder = os.path.join(args.savedir, "shapenet_b{}_pts{}_{}".format(args.batchsize, args.npoints, time_string))
     os.makedirs(root_folder, exist_ok=True)
 
     # create the log file

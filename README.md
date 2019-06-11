@@ -122,7 +122,46 @@ You can also compute the part average scores using the flag ```--part_av```.
 
 ### S3DIS
 
-**Code to be released**
+#### Data preparation
+
+Data is prepared using the ```prepare_s3dis_label.py``` script in the ```data_conversions``` folder.
+
+#### Training
+
+For training on area 2:
+
+```
+python s3dis_seg.py --rootdir path_to_data_processed/ --area 2 --savedir path_to_save_directory
+```
+
+#### Test
+
+For testing on area 2:
+
+```
+python s3dis_seg.py --rootdir path_to_data_processed --area 2 --savedir path_to_save_directory --test
+```
+
+
+
+| Class | Area 2| 
+| --- | ---|
+| clutter | 0.40 |
+| ceiling | 0.88 |
+| floor |0.96 |
+| wall | 0.79 |
+| beam | 0.20 |
+| column | 0.41 |
+| door | 0.62 |
+| window | 0.43 |
+| table | 0.38 |
+| chair | 0.26 |
+| sofa | 0.01 |
+| bookcase | 0.39 |
+| board | 0.10 |
+| **OA** | 0.81 |
+| **Av. IoU** | 0.45 |
+
 
 ### Semantic8
 
