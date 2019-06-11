@@ -1,7 +1,7 @@
 import argparse
 import os
 from datetime import datetime
-from network_seg import Net2 as Net
+from network_seg import NetS3DIS as Net
 import numpy as np
 
 import torch
@@ -11,7 +11,6 @@ import torchvision
 from torchvision import transforms
 from PIL import Image
 
-from tree import computeTree, tree_collate
 from tqdm import tqdm
 import random
 import metrics
@@ -69,7 +68,7 @@ def rotate_point_cloud_z(batch_data):
 # Part dataset only for training / validation
 class PartDatasetTrainVal():
 
-    def __init__ (self, filelist, folder, config,
+    def __init__ (self, filelist, folder,
                     training=False, 
                     block_size=2,
                     npoints = 4096,
@@ -81,7 +80,6 @@ class PartDatasetTrainVal():
         self.bs = block_size
         
         self.npoints = npoints
-        self.config = config
         self.iterations = iteration_number
         self.verbose = False
         self.number_of_run = 10
@@ -141,14 +139,12 @@ class PartDatasetTrainVal():
         
         if self.training:
             pts = rotate_point_cloud_z(pts)
-
-        tree = computeTree(pts, self.config, lbs)
     
-        pts = torch.from_numpy(pts).float().unsqueeze(0)
-        fts = torch.from_numpy(features).float().unsqueeze(0)
-        lbs = torch.from_numpy(lbs).long().unsqueeze(0)
+        pts = torch.from_numpy(pts).float()
+        fts = torch.from_numpy(features).float()
+        lbs = torch.from_numpy(lbs).long()
 
-        return pts, fts, lbs, tree
+        return pts, fts, lbs
 
     def __len__(self):
         if self.iterations is None:
@@ -167,7 +163,7 @@ class PartDatasetTest():
         mask = np.logical_and(mask_x, mask_y)
         return mask
 
-    def __init__ (self, filename, folder, config,
+    def __init__ (self, filename, folder,
                     block_size=2,
                     npoints = 4096,
                     min_pick_per_point = 1):
@@ -175,7 +171,6 @@ class PartDatasetTest():
         self.folder = folder
         self.bs = block_size
         self.npoints = npoints
-        self.config = config
         self.verbose = False
         self.min_pick_per_point = min_pick_per_point
 
@@ -236,15 +231,12 @@ class PartDatasetTest():
         features = pts[:,3:] / 255 - 0.5
         pts = pts[:,:3].copy()
 
-        # compute tree
-        tree = computeTree(pts, self.config)
-
         # convert to torch
-        pts = torch.from_numpy(pts).float().unsqueeze(0)
-        fts = torch.from_numpy(features).float().unsqueeze(0)
-        lbs = torch.from_numpy(lbs).long().unsqueeze(0)
+        pts = torch.from_numpy(pts).float()
+        fts = torch.from_numpy(features).float()
+        lbs = torch.from_numpy(lbs).long()
 
-        return pts, fts, lbs, tree
+        return pts, fts, lbs
 
     def __len__(self):
         return len(self.pts)
@@ -262,20 +254,18 @@ def train(args, flist_train, flist_test):
 
 
     print("Creating dataloader and optimizer...")
-    ds = PartDatasetTrainVal(flist_train, args.rootdir, net.config,
+    ds = PartDatasetTrainVal(flist_train, args.rootdir,
                              training=True, block_size=args.blocksize,
                              npoints=args.npoints,iteration_number=args.batchsize*args.iter)
     train_loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=True,
-                                        num_workers=args.threads,
-                                        collate_fn=tree_collate
+                                        num_workers=args.threads
                                         )
 
-    ds_val = PartDatasetTrainVal(flist_test, args.rootdir, net.config,
+    ds_val = PartDatasetTrainVal(flist_test, args.rootdir,
                              training=False, block_size=args.blocksize,
                              npoints=args.npoints)
     test_loader = torch.utils.data.DataLoader(ds_val, batch_size=args.batchsize, shuffle=False,
-                                        num_workers=args.threads,
-                                        collate_fn=tree_collate
+                                        num_workers=args.threads
                                         )
 
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
@@ -317,17 +307,14 @@ def train(args, flist_train, flist_test):
         train_loss = 0
         cm = np.zeros((N_CLASSES, N_CLASSES))
         t = tqdm(train_loader, ncols=100, desc="Epoch {}".format(epoch))
-        for pts, features, seg, tree in t:
+        for pts, features, seg in t:
 
             features = features.cuda()
             pts = pts.cuda()
-            for l_id in range(len(tree)):
-                tree[l_id]["points"] = tree[l_id]["points"].cuda()
-                tree[l_id]["indices"] = tree[l_id]["indices"].cuda()
             seg = seg.cuda()
             
             optimizer.zero_grad()
-            outputs = net(features, pts, tree)
+            outputs = net(features, pts)
             loss =  F.cross_entropy(outputs.view(-1, N_CLASSES), seg.view(-1), weight=weights)
             loss.backward()
             optimizer.step()
@@ -360,17 +347,14 @@ def train(args, flist_train, flist_test):
         test_loss = 0
         t = tqdm(test_loader, ncols=80, desc="  Test epoch {}".format(epoch))
         with torch.no_grad():
-            for pts, features, seg, tree in t:
+            for pts, features, seg in t:
                 
                 features = features.cuda()
                 pts = pts.cuda()
-                for l_id in range(len(tree)):
-                    tree[l_id]["points"] = tree[l_id]["points"].cuda()
-                    tree[l_id]["indices"] = tree[l_id]["indices"].cuda()
                 seg = seg.cuda()
                 
                 
-                outputs = net(features, pts, tree)
+                outputs = net(features, pts)
                 loss =  F.cross_entropy(outputs.view(-1, N_CLASSES), seg.view(-1))
 
                 output_np = np.argmax(outputs.cpu().detach().numpy(), axis=2).copy()
@@ -412,28 +396,24 @@ def test(args, flist_test):
 
     for filename in flist_test:
         print(filename)
-        ds = PartDatasetTest(filename, args.rootdir, config=net.config,
+        ds = PartDatasetTest(filename, args.rootdir,
                             block_size=args.blocksize,
                             min_pick_per_point= args.npick,
                             npoints= args.npoints
                             )
         loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=False,
-                                        num_workers=args.threads,
-                                        collate_fn=tree_collate
+                                        num_workers=args.threads
                                         )
 
         xyzrgb = ds.xyzrgb[:,:3]
         scores = np.zeros((xyzrgb.shape[0], N_CLASSES))
         with torch.no_grad():
             t = tqdm(loader, ncols=80)
-            for pts, features, indices, tree in t:
+            for pts, features, indices in t:
                 
                 features = features.cuda()
                 pts = pts.cuda()
-                for l_id in range(len(tree)):
-                    tree[l_id]["points"] = tree[l_id]["points"].cuda()
-                    tree[l_id]["indices"] = tree[l_id]["indices"].cuda()
-                outputs = net(features, pts, tree)
+                outputs = net(features, pts)
 
                 outputs_np = outputs.cpu().numpy().reshape((-1, N_CLASSES))
                 scores[indices.cpu().numpy().ravel()] += outputs_np
@@ -473,7 +453,7 @@ def main():
     parser.add_argument("--area", default=1, type=int)
     parser.add_argument("--blocksize", default=2, type=int)
     parser.add_argument("--iter", default=1000, type=int)
-    parser.add_argument("--threads", default=4, type=int)
+    parser.add_argument("--threads", default=2, type=int)
     parser.add_argument("--npick", default=16, type=int)
     parser.add_argument("--savepts", action="store_true")
     args = parser.parse_args()

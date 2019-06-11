@@ -3,50 +3,28 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# a function for computing the convolution
-def conv(x, layer, tree, layer_id, bn=None, input_pts=None):
-    if layer_id == -1:
-        x = layer(x, input_pts, tree[layer_id+1]["indices"])
-    else:
-        x = layer(x, tree[layer_id]["points"], tree[layer_id+1]["indices"])
-    if bn is not None:
-        x = x.transpose(1,2)
-        x = bn(x).transpose(1,2).contiguous()
-    return F.relu(x)
+from layers.utils import apply_bn
 
 
 class NetShapeNet(nn.Module):
     def __init__(self, input_channels, output_channels, dimension=3):
         super(NetShapeNet, self).__init__()
 
-        self.config = [
-                    [1024, 16, "conv_reduction"],
-                    [256, 16, "conv_reduction"],
-                    [64,  8, "conv_reduction"],
-                    [16,   8, "conv_reduction"],
-                    [8,   4, "conv_reduction"],
-
-                    [-1,   4, "deconv"],
-                    [-1,   4, "deconv"],
-                    [-1,   4, "deconv"],
-                    [-1,   8, "deconv"],
-                    [-1,   8, "deconv"]]
-
         n_centers = 27
         pl = 48
 
-        self.cv1 = PtConv(input_channels, pl, n_centers, dimension)
-        self.cv2 = PtConv(pl, pl, n_centers, dimension)
-        self.cv3 = PtConv(pl, pl, n_centers, dimension)
-        self.cv4 = PtConv(pl, 2*pl, n_centers, dimension)
-        self.cv5 = PtConv(2*pl, 2*pl, n_centers, dimension)
+        self.cv1 = PtConv(input_channels, pl, n_centers, dimension, use_bias=False)
+        self.cv2 = PtConv(pl, pl, n_centers, dimension, use_bias=False)
+        self.cv3 = PtConv(pl, pl, n_centers, dimension, use_bias=False)
+        self.cv4 = PtConv(pl, 2*pl, n_centers, dimension, use_bias=False)
+        self.cv5 = PtConv(2*pl, 2*pl, n_centers, dimension, use_bias=False)
 
-        self.cv4d = PtConv(2*pl, 2*pl, n_centers, dimension)
-        self.cv3d = PtConv(4*pl, pl, n_centers, dimension)
-        self.cv2d = PtConv(2*pl, pl, n_centers, dimension)
-        self.cv1d = PtConv(2*pl, pl, n_centers, dimension)
+        self.cv4d = PtConv(2*pl, 2*pl, n_centers, dimension, use_bias=False)
+        self.cv3d = PtConv(4*pl, pl, n_centers, dimension, use_bias=False)
+        self.cv2d = PtConv(2*pl, pl, n_centers, dimension, use_bias=False)
+        self.cv1d = PtConv(2*pl, pl, n_centers, dimension, use_bias=False)
 
-        self.cv0d = PtConv(2*pl, pl, n_centers, dimension)
+        self.cv0d = PtConv(2*pl, pl, n_centers, dimension, use_bias=False)
         self.fcout = nn.Linear(pl, output_channels)
 
         self.bn1 = nn.BatchNorm1d(pl)
@@ -61,41 +39,42 @@ class NetShapeNet(nn.Module):
         self.bn1d = nn.BatchNorm1d(pl)
         self.bn0d = nn.BatchNorm1d(pl)
 
-    def forward(self, x, input_pts, tree):
+    def forward(self, x, input_pts):
 
-        layer_id = -1
-        x1 = conv(x, self.cv1, tree, layer_id, self.bn1, input_pts)
-        layer_id += 1
+        x1, pts1 = self.cv1(x, input_pts, 16, 1024)
+        x1 = F.relu(apply_bn(x1, self.bn1))
 
-        x2 = conv(x1, self.cv2, tree, layer_id, self.bn2)
-        layer_id += 1
+        x2, pts2 = self.cv2(x1, pts1, 16, 256)
+        x2 = F.relu(apply_bn(x2, self.bn2))
 
-        x3 = conv(x2, self.cv3, tree, layer_id, self.bn3)
-        layer_id += 1
+        x3, pts3 = self.cv3(x2, pts2, 8, 64)
+        x3 = F.relu(apply_bn(x3, self.bn3))
 
-        x4 = conv(x3, self.cv4, tree, layer_id, self.bn4)
-        layer_id += 1
+        x4, pts4 = self.cv4(x3, pts3, 8, 16)
+        x4 = F.relu(apply_bn(x4, self.bn4))
 
-        x5 = conv(x4, self.cv5, tree, layer_id, self.bn5)
-        layer_id += 1
+        x5, pts5 = self.cv5(x4, pts4, 4, 8)
+        x5 = F.relu(apply_bn(x5, self.bn5))
 
-        x4d = conv(x5, self.cv4d, tree, layer_id, self.bn4d)
+        x4d, _ = self.cv4d(x5, pts5, 4, pts4)
+        x4d = F.relu(apply_bn(x4d, self.bn4d))
         x4d = torch.cat([x4d, x4], dim=2)
-        layer_id += 1
 
-        x3d = conv(x4d, self.cv3d, tree, layer_id, self.bn3d)
+        x3d, _ = self.cv3d(x4d, pts4, 4, pts3)
+        x3d = F.relu(apply_bn(x3d, self.bn3d))
         x3d = torch.cat([x3d, x3], dim=2)
-        layer_id += 1
 
-        x2d = conv(x3d, self.cv2d, tree, layer_id, self.bn2d)
+        x2d, _ = self.cv2d(x3d, pts3, 4, pts2)
+        x2d = F.relu(apply_bn(x2d, self.bn2d))
         x2d = torch.cat([x2d, x2], dim=2)
-        layer_id += 1
-
-        x1d = conv(x2d, self.cv1d, tree, layer_id, self.bn1d)
+        
+        x1d, _ = self.cv1d(x2d, pts2, 8, pts1)
+        x1d = F.relu(apply_bn(x1d, self.bn1d))
         x1d = torch.cat([x1d, x1], dim=2)
-        layer_id += 1
 
-        x0d = conv(x1d, self.cv0d, tree, layer_id, self.bn0d)
+        x0d, _ = self.cv0d(x1d, pts1, 8, input_pts)
+        x0d = F.relu(apply_bn(x0d, self.bn0d))
+
         xout = x0d
         xout = xout.view(-1, xout.size(2))
         xout = self.fcout(xout)
@@ -159,58 +138,55 @@ class NetS3DIS(nn.Module):
 
         self.drop = nn.Dropout(0.3)
 
-    def forward(self, x, input_pts, tree):
+    def forward(self, x, input_pts):
 
-        layer_id = -1
-        x1 = conv(x, self.cv1, tree, layer_id, self.bn1, input_pts)
-        layer_id += 1
 
-        x2 = conv(x1, self.cv2, tree, layer_id, self.bn2)
-        layer_id += 1
+        x1, pts1 = self.cv1(x, input_pts, 16, 2048)
+        x1 = F.relu(apply_bn(x1, self.bn1))
 
-        x3 = conv(x2, self.cv3, tree, layer_id, self.bn3)
-        layer_id += 1
+        x2, pts2 = self.cv2(x1, pts1, 16, 1024)
+        x2 = F.relu(apply_bn(x2, self.bn2))
 
-        x4 = conv(x3, self.cv4, tree, layer_id, self.bn4)
-        layer_id += 1
+        x3, pts3 = self.cv3(x2, pts2, 16, 256)
+        x3 = F.relu(apply_bn(x3, self.bn3))
 
-        x5 = conv(x4, self.cv5, tree, layer_id, self.bn5)
-        layer_id += 1
+        x4, pts4 = self.cv4(x3, pts3, 8, 64)
+        x4 = F.relu(apply_bn(x4, self.bn4))
 
-        # x5 = self.drop(x5)
+        x5, pts5 = self.cv5(x4, pts4, 8, 16)
+        x5 = F.relu(apply_bn(x5, self.bn5))
 
-        x6 = conv(x5, self.cv6, tree, layer_id, self.bn6)
-        layer_id += 1
+        x6, pts6 = self.cv6(x5, pts5, 4, 8)
+        x6 = F.relu(apply_bn(x6, self.bn6))
 
-        # x6 = self.drop(x6)
-
-        x5d = conv(x6, self.cv5d, tree, layer_id, self.bn5d)
-        # x5d = self.drop(x5d)
+        x5d, _ = self.cv5d(x6, pts6, 4, pts5)
+        x5d = F.relu(apply_bn(x5d, self.bn5d))
         x5d = torch.cat([x5d, x5], dim=2)
-        layer_id += 1
 
-        x4d = conv(x5d, self.cv4d, tree, layer_id, self.bn4d)
+        x4d, _ = self.cv4d(x5d, pts5, 4, pts4)
+        x4d = F.relu(apply_bn(x4d, self.bn4d))
         x4d = torch.cat([x4d, x4], dim=2)
-        layer_id += 1
 
-        x3d = conv(x4d, self.cv3d, tree, layer_id, self.bn3d)
+        x3d, _ = self.cv3d(x4d, pts4, 4, pts3)
+        x3d = F.relu(apply_bn(x3d, self.bn3d))
         x3d = torch.cat([x3d, x3], dim=2)
-        layer_id += 1
 
-        x2d = conv(x3d, self.cv2d, tree, layer_id, self.bn2d)
+        x2d, _ = self.cv2d(x3d, pts3, 8, pts2)
+        x2d = F.relu(apply_bn(x2d, self.bn2d))
         x2d = torch.cat([x2d, x2], dim=2)
-        layer_id += 1
-
-        x1d = conv(x2d, self.cv1d, tree, layer_id, self.bn1d)
+        
+        x1d, _ = self.cv1d(x2d, pts2, 8, pts1)
+        x1d = F.relu(apply_bn(x1d, self.bn1d))
         x1d = torch.cat([x1d, x1], dim=2)
-        layer_id += 1
 
-        x0d = conv(x1d, self.cv0d, tree, layer_id, self.bn0d)
+        x0d, _ = self.cv0d(x1d, pts1, 8, input_pts)
+        x0d = F.relu(apply_bn(x0d, self.bn0d))
 
         xout = x0d
         xout = xout.view(-1, xout.size(2))
         xout = self.fcout(xout)
         xout = xout.view(x.size(0), -1, xout.size(1))
+
         return xout
 
 

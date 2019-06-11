@@ -12,7 +12,6 @@ from datetime import datetime
 from sklearn.metrics import confusion_matrix
 
 import metrics
-from tree import computeTree, tree_collate
 from network_classif import Net
 
 import h5py
@@ -65,14 +64,13 @@ def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
 class PointCloudFileLists(torch.utils.data.Dataset):
     """Main Class for Image Folder loader."""
 
-    def __init__(self, data, labels, config, pt_nbr=1024, training=True):
+    def __init__(self, data, labels, pt_nbr=1024, training=True):
         """Init function."""
 
         self.data = data
         self.labels = labels
         self.training = training
         self.pt_nbr = pt_nbr
-        self.config = config
 
     def __getitem__(self, index):
         """Get item."""
@@ -92,16 +90,8 @@ class PointCloudFileLists(torch.utils.data.Dataset):
         if self.training:
             pts = jitter_point_cloud(pts)
 
-        # create the tree
-        tree = computeTree(pts, self.config)
-
-        # convert to torch
-        pts = torch.from_numpy(pts).float().unsqueeze(0)
-        target = torch.Tensor([target]).long().unsqueeze(0)
-        features = torch.from_numpy(features).float().unsqueeze(0)
-
         # return data
-        return pts, features, target, tree
+        return pts.astype(np.float32), features.astype(np.float32), int(target)
 
     def __len__(self):
         """Length."""
@@ -139,7 +129,7 @@ def main():
                 ]
 
     # parameters for training
-    THREADS = 4
+    THREADS = 0
     N_LABELS = len(labels)
     epoch_nbr = 100
     input_channels = 1
@@ -170,10 +160,10 @@ def main():
 
 
     print("Creating dataloaders...", end="")
-    ds = PointCloudFileLists(train_data, train_labels, config=net.config, pt_nbr=args.npoints)
-    train_loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=True, num_workers=THREADS, collate_fn=tree_collate)
-    ds_test = PointCloudFileLists(test_data, test_labels, config=net.config, pt_nbr=args.npoints, training=False)
-    test_loader = torch.utils.data.DataLoader(ds_test, batch_size=args.batchsize, shuffle=False, num_workers=THREADS, collate_fn=tree_collate)
+    ds = PointCloudFileLists(train_data, train_labels, pt_nbr=args.npoints)
+    train_loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=True, num_workers=THREADS)
+    ds_test = PointCloudFileLists(test_data, test_labels, pt_nbr=args.npoints, training=False)
+    test_loader = torch.utils.data.DataLoader(ds_test, batch_size=args.batchsize, shuffle=False, num_workers=THREADS)
     print("done")
 
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
@@ -188,18 +178,17 @@ def main():
         error = 0
         cm = np.zeros((N_LABELS, N_LABELS))
 
-        for pts, features, targets, tree in t:
+
+        for pts, features, targets in t:
             if args.cuda:
                 features = features.cuda()
                 pts = pts.cuda()
                 targets = targets.cuda()
-                for l_id in range(len(tree)):
-                    tree[l_id]["points"] = tree[l_id]["points"].cuda()
 
             if training:
                 optimizer.zero_grad()
 
-            outputs = net(features, pts, tree)
+            outputs = net(features, pts)
             targets = targets.view(-1)
             loss = F.cross_entropy(outputs, targets)
 

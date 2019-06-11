@@ -3,30 +3,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# a function for computing the convolution
-def conv(x, layer, tree, layer_id, bn=None, input_pts=None):
-    if layer_id == -1:
-        x = layer(x, input_pts, tree[layer_id+1]["indices"])
-    else:
-        x = layer(x, tree[layer_id]["points"], tree[layer_id+1]["indices"])
-    if bn is not None:
-        x = x.transpose(1,2)
-        x = bn(x).transpose(1,2).contiguous()
-    return F.relu(x)
+from layers.utils import apply_bn
+
 
 class Net(nn.Module):
     
     def __init__(self, input_channels, output_channels, dimension=3):
         super(Net, self).__init__()
-
-        self.config = [
-                    [1024, 16, "conv_reduction"],
-                    [256, 16, "conv_reduction"],
-                    [64,  8, "conv_reduction"],
-                    [16,   8, "conv_reduction"],
-                    [8,   4, "conv_reduction"],
-                    ]
-
+        
         n_centers = 27
         pl = 64
 
@@ -47,24 +31,24 @@ class Net(nn.Module):
         self.bn4 = nn.BatchNorm1d(2*pl)
         self.bn5 = nn.BatchNorm1d(2*pl)
 
-    def forward(self, x, input_pts, tree):
+    def forward(self, x, input_pts):
 
-        layer_id = -1
-        x1 = conv(x, self.cv1, tree, layer_id, self.bn1, input_pts)
-        layer_id += 1
+        x1, pts1 = self.cv1(x, input_pts, 16, 1024)
+        x1 = F.relu(apply_bn(x1, self.bn1))
 
-        x2 = conv(x1, self.cv2, tree, layer_id, self.bn2)
-        layer_id += 1
+        x2, pts2 = self.cv2(x1, pts1, 16, 256)
+        x2 = F.relu(apply_bn(x2, self.bn2))
 
-        x3 = conv(x2, self.cv3, tree, layer_id, self.bn3)
-        layer_id += 1
+        x3, pts3 = self.cv3(x2, pts2, 8, 64)
+        x3 = F.relu(apply_bn(x3, self.bn3))
 
-        x4 = conv(x3, self.cv4, tree, layer_id, self.bn4)
-        layer_id += 1
+        x4, pts4 = self.cv4(x3, pts3, 8, 16)
+        x4 = F.relu(apply_bn(x4, self.bn4))
 
-        x5 = conv(x4, self.cv5, tree, layer_id, self.bn5)
-        layer_id += 1
+        x5, _ = self.cv5(x4, pts4, 4, 8)
+        x5 = F.relu(apply_bn(x5, self.bn5))
 
         xout = x5.view(x5.size(0), -1)
         xout = self.fcout(xout)
+
         return xout

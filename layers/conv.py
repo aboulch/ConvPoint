@@ -4,7 +4,10 @@ import torch.nn.functional as F
 import numpy as np
 import math
 
-class PtConv(nn.Module):
+from .layer_base import LayerBase
+
+
+class PtConv(LayerBase):
     def __init__(self, input_features, output_features, n_centers, dim, use_bias=True):
         super(PtConv, self).__init__()
 
@@ -36,7 +39,20 @@ class PtConv(nn.Module):
         self.l3 = nn.Linear(n_centers, n_centers)
 
 
-    def forward(self, input, points, indices, next_points=None, normalize=True):
+    def forward(self, input, points, K, next_pts=None, normalize=True):
+
+        # 
+        if isinstance(next_pts, int) and points.size(1) > next_pts:
+            # convolution with reduction
+            indices, next_pts = self.indices_conv_reduction(points, K, next_pts)
+        elif (next_pts is None) or (isinstance(next_pts, int) and points.size(1) == next_pts):
+            # convolution without reduction
+            indices, next_pts = self.indices_conv(points, K)
+        elif points.size(1) < next_pts.size(1):
+            # convolution with up sampling
+            indices, next_pts = self.indices_deconv(points, next_pts, K)
+        else:
+            raise("ERROR: error while computing indices")
 
         batch_size = input.size(0)
         n_pts = input.size(1)
@@ -49,11 +65,8 @@ class PtConv(nn.Module):
         features = input.view(-1, input.size(2))[indices]
         pts = points.view(-1, points.size(2))[indices]
 
-        # if the projecting points is provided, use it, otherwise, it is gravity center
-        if next_points is not None:
-            pts = pts - next_points.unsqueeze(2)
-        else:
-            pts = pts - pts.sum(2, keepdim=True) / indices.size(2)
+        # center the neighborhoods
+        pts = pts - next_pts.unsqueeze(2)
 
         # normalize to unit ball, or not
         if normalize:
@@ -85,4 +98,4 @@ class PtConv(nn.Module):
         if self.use_bias:
             features = features + self.bias
 
-        return features
+        return features, next_pts
