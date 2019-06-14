@@ -29,10 +29,10 @@ If you use this code in your research, please consider citing:
 (citation will be updated as soon as 3DOR proceedings will be released)
 
 ```
-@inproceedings{boulch2019,
+@article{boulch2019generalizing,
   title={Generalizing discrete convolutions for unstructured point clouds},
   author={Boulch, Alexandre},
-  booktitle={Eurographics Workshop on 3D Object Retrieval},
+  journal={arXiv preprint arXiv:1904.02375},
   year={2019}
 }
 ```
