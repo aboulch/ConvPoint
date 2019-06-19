@@ -4,8 +4,11 @@ import torch.nn.functional as F
 import numpy as np
 import math
 
-from .layer_base import LayerBase
-
+from global_tags import GlobalTags
+if GlobalTags.legacy_layer_base():
+    from .legacy.layer_base import LayerBase
+else:
+    from .layer_base import LayerBase
 
 class PtConv(LayerBase):
     def __init__(self, input_features, output_features, n_centers, dim, use_bias=True):

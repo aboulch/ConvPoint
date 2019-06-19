@@ -49,12 +49,28 @@ All these dependencies can be install via conda in an Anaconda environment or vi
 
 ## The library
 
+### Nearest neaighbor module
+
+The ```nearest_neighbors``` directory contains a very small wrapper for [NanoFLANN](https://github.com/jlblancoc/nanoflann) with OpenMP.
+To compile the module:
+```
+cd nearest_neighbors
+python setup.py install --home="."
+```
+
+In the case, you do not want to use this C++/Python wrapper. You still can use the previous version of the nearest neighbors computation with Scikit Learn and Multiprocessing, python only version (slower). To do so, add the following lines at the start of your main script (e.g. ```modelnet_classif.py```):
+```
+from global_tags import GlobalTags
+GlobalTags.legacy_layer_base(True)
+```
+
+
 ## Usage
 
 We propose scripts for training on several point cloud datasets:
 - ModelNet40 (meshes can be found here [https://shapenet.cs.stanford.edu/media/modelnet40_ply_hdf5_2048.zip](https://shapenet.cs.stanford.edu/media/modelnet40_ply_hdf5_2048.zip)). The meshes are sampled in the code using Trimesh.
-- ShapeNet *(code to be added)*
-- S3DIS *(code to be added)*
+- ShapeNet
+- S3DIS
 - Semantic8 *(code to added)*
 
 ### ModelNet40
