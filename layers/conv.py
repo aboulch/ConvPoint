@@ -44,18 +44,18 @@ class PtConv(LayerBase):
 
     def forward(self, input, points, K, next_pts=None, normalize=True):
 
-        # 
-        if isinstance(next_pts, int) and points.size(1) > next_pts:
+        if isinstance(next_pts, int) and points.size(1) != next_pts:
             # convolution with reduction
-            indices, next_pts = self.indices_conv_reduction(points, K, next_pts)
+            indices, next_pts_ = self.indices_conv_reduction(points, K, next_pts)
         elif (next_pts is None) or (isinstance(next_pts, int) and points.size(1) == next_pts):
             # convolution without reduction
-            indices, next_pts = self.indices_conv(points, K)
-        elif points.size(1) < next_pts.size(1):
-            # convolution with up sampling
-            indices, next_pts = self.indices_deconv(points, next_pts, K)
+            indices, next_pts_ = self.indices_conv(points, K)
         else:
-            raise("ERROR: error while computing indices")
+            # convolution with up sampling or projection on given points
+            indices, next_pts_ = self.indices_deconv(points, next_pts, K)
+
+        if next_pts is None or isinstance(next_pts, int):
+            next_pts = next_pts_
 
         batch_size = input.size(0)
         n_pts = input.size(1)
@@ -68,12 +68,13 @@ class PtConv(LayerBase):
         features = input.view(-1, input.size(2))[indices]
         pts = points.view(-1, points.size(2))[indices]
 
+
         # center the neighborhoods
         pts = pts - next_pts.unsqueeze(2)
 
         # normalize to unit ball, or not
         if normalize:
-            maxi = torch.sqrt((pts**2).sum(3).max(2)[0])
+            maxi = torch.sqrt((pts.detach()**2).sum(3).max(2)[0]) # detach is a modificaiton
             maxi[maxi==0] = 1
             pts = pts / maxi.view(maxi.size()+(1,1,))
 

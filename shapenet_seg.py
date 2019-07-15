@@ -81,8 +81,8 @@ def train(args):
     BATCH_SIZE = args.batchsize
     USE_CUDA = True
     N_CLASSES = 50
-    EPOCHS = 200
-    MILESTONES = [60,120,180]
+    EPOCHS = 150
+    MILESTONES = [60,120]
 
     print("Creating network...")
     net = Net(input_channels=1, output_channels=N_CLASSES)
@@ -152,7 +152,7 @@ def test(args):
     args.data_folder = os.path.join(args.rootdir, "test_data")
 
     # create the output folders
-    output_folder = args.savedir + '_predictions'
+    output_folder = os.path.join(args.savedir,'_predictions')
     category_list = [(category, int(label_num)) for (category, label_num) in
                      [line.split() for line in open(args.category, 'r')]]
     offset = 0
@@ -249,7 +249,7 @@ def test_multiple(args):
     args.data_folder = os.path.join(args.rootdir, "test_data")
 
     # create the output folders
-    output_folder = args.savedir + '_predictions_multi_{}'.format(args.ntree)
+    output_folder = os.path.join(args.savedir, '_predictions_multi_{}'.format(args.ntree))
     category_list = [(category, int(label_num)) for (category, label_num) in
                      [line.split() for line in open(args.category, 'r')]]
     offset = 0
@@ -313,7 +313,7 @@ def test_multiple(args):
 
             for batch in batches:
 
-                pts, features, seg = tree_collate(batch)
+                pts, features, seg = torch.utils.data._utils.collate.default_collate(batch)
                 if USE_CUDA:
                     features = features.cuda()
                     pts = pts.cuda()

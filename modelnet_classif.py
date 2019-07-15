@@ -11,7 +11,7 @@ from datetime import datetime
 from sklearn.metrics import confusion_matrix
 
 import metrics
-from network_classif import Net
+from network_classif import Net as Net
 
 import h5py
 
@@ -36,9 +36,6 @@ def get_data(rootdir, files):
 
     return data, labels
 
-
-
-
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -49,15 +46,6 @@ def pc_normalize(pc):
     m = np.max(np.sqrt(np.sum(pc**2, axis=1)))
     pc = pc / m
     return pc
-
-def jitter_point_cloud(batch_data, sigma=0.01, clip=0.05):
-    # function inspired by PointNet, translated to Pytorch
-    # https://github.com/charlesq34/pointnet
-    N, C = batch_data.shape
-    assert(clip > 0)
-    jittered_data = np.clip(sigma * np.random.randn(N, C), -1*clip, clip)
-    jittered_data += batch_data
-    return jittered_data
 
 
 class PointCloudFileLists(torch.utils.data.Dataset):
@@ -86,10 +74,7 @@ class PointCloudFileLists(torch.utils.data.Dataset):
         features = np.ones((pts.shape[0], 1))
 
         pts = pc_normalize(pts)
-        if self.training:
-            pts = jitter_point_cloud(pts)
 
-        # return data
         return pts.astype(np.float32), features.astype(np.float32), int(target)
 
     def __len__(self):
@@ -128,7 +113,7 @@ def main():
                 ]
 
     # parameters for training
-    THREADS = 0
+    THREADS = 4
     N_LABELS = len(labels)
     epoch_nbr = 100
     input_channels = 1
@@ -203,10 +188,10 @@ def main():
             error += loss.item()
 
             # scores
-            oa = "{:.3f}".format(metrics.stats_overall_accuracy(cm))
-            aa = "{:.3f}".format(metrics.stats_accuracy_per_class(cm)[0])
-            aiou = "{:.3f}".format(metrics.stats_iou_per_class(cm)[0])
-            aloss = "{:.3e}".format(error / cm.sum())
+            oa = "{:.5f}".format(metrics.stats_overall_accuracy(cm))
+            aa = "{:.5f}".format(metrics.stats_accuracy_per_class(cm)[0])
+            aiou = "{:.5f}".format(metrics.stats_iou_per_class(cm)[0])
+            aloss = "{:.5e}".format(error / cm.sum())
 
             t.set_postfix(OA=oa, AA=aa, AIOU=aiou, ALoss=aloss)
         return aloss, oa, aa, aiou
@@ -265,16 +250,15 @@ def main():
                     for tree_id in range(args.ntree):
                         batch.append(ds_test.__getitem__(shape_id))
 
-                    pts, features, targets, tree = tree_collate(batch)
+                    pts, features, targets = torch.utils.data._utils.collate.default_collate(batch)
 
                     if args.cuda:
                         features = features.cuda()
                         pts = pts.cuda()
                         targets = targets.cuda()
-                        for l_id in range(len(tree)):
-                            tree[l_id]["points"] = tree[l_id]["points"].cuda()
 
-                    outputs = net(features, pts, tree)
+
+                    outputs = net(features, pts)
                     outputs = outputs.sum(dim=0, keepdim=True)
                     targets = targets.view(-1)[0]
 
@@ -285,9 +269,9 @@ def main():
                     cm += cm_
 
                     # scores
-                    oa = "{:.3f}".format(metrics.stats_overall_accuracy(cm))
-                    aa = "{:.3f}".format(metrics.stats_accuracy_per_class(cm)[0])
-                    aiou = "{:.3f}".format(metrics.stats_iou_per_class(cm)[0])
+                    oa = "{:.5f}".format(metrics.stats_overall_accuracy(cm))
+                    aa = "{:.5f}".format(metrics.stats_accuracy_per_class(cm)[0])
+                    aiou = "{:.5f}".format(metrics.stats_iou_per_class(cm)[0])
 
                     t.set_postfix(OA=oa, AA=aa, AIOU=aiou)
             

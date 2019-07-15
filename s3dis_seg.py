@@ -72,12 +72,13 @@ class PartDatasetTrainVal():
                     training=False, 
                     block_size=2,
                     npoints = 4096,
-                    iteration_number = None,):
+                    iteration_number = None, nocolor=False):
 
         self.training = training
         self.filelist = filelist
         self.folder = folder
         self.bs = block_size
+        self.nocolor = nocolor
         
         self.npoints = npoints
         self.iterations = iteration_number
@@ -99,11 +100,8 @@ class PartDatasetTrainVal():
         else:
             dataset = self.filelist[index//self.number_of_run]
 
-        # load data
         filename_data = os.path.join(folder, dataset, 'xyzrgb.npy')
-        if self.verbose:
-            print('{}-Loading {}...'.format(datetime.now(), filename_data))
-        xyzrgb = np.load(filename_data)
+        xyzrgb = np.load(filename_data).astype(np.float32)
 
         # load labels
         filename_labels = os.path.join(folder, dataset, 'label.npy')
@@ -121,19 +119,21 @@ class PartDatasetTrainVal():
         pts = xyzrgb[mask]
         lbs = labels[mask]
 
-
         choice = np.random.choice(pts.shape[0], self.npoints, replace=True)
         pts = pts[choice]
         lbs = lbs[choice]
 
-        features = pts[:,3:]
-        if self.training:
-            features = features.astype(np.uint8)
-            features = np.array(self.transform( Image.fromarray(np.expand_dims(features, 0)) ))
-            features = np.squeeze(features, 0)
-        
-        features = features.astype(np.float32)
-        features = features / 255 - 0.5
+        if self.nocolor:
+            features = np.ones((pts.shape[0], 1))
+        else:
+            features = pts[:,3:]
+            if self.training:
+                features = features.astype(np.uint8)
+                features = np.array(self.transform( Image.fromarray(np.expand_dims(features, 0)) ))
+                features = np.squeeze(features, 0)
+            
+            features = features.astype(np.float32)
+            features = features / 255 - 0.5
 
         pts = pts[:,:3]
         
@@ -166,14 +166,14 @@ class PartDatasetTest():
     def __init__ (self, filename, folder,
                     block_size=2,
                     npoints = 4096,
-                    min_pick_per_point = 1):
+                    min_pick_per_point = 1, test_step=0.5, nocolor=False):
 
         self.folder = folder
         self.bs = block_size
         self.npoints = npoints
         self.verbose = False
         self.min_pick_per_point = min_pick_per_point
-
+        self.nocolor = nocolor
         # load data
         self.filename = filename
         filename_data = os.path.join(folder, self.filename, 'xyzrgb.npy')
@@ -185,50 +185,29 @@ class PartDatasetTest():
             print('{}-Loading {}...'.format(datetime.now(), filename_labels))
         self.labels = np.load(filename_labels).astype(int).flatten()
 
-        # create the list of points
-        # ensures that each point is seen at least min_pick_per_points
-        current_pick_min = 0
-        count = np.zeros(self.xyzrgb.shape[0], dtype=int)
-        self.pts = []
-        while(True):
+        step = test_step
+        discretized = ((self.xyzrgb[:,:2]).astype(float)/step).astype(int)
+        self.pts = np.unique(discretized, axis=0)
+        self.pts = self.pts.astype(np.float)*step
 
-            # check for points that can be used as a seed
-            possible_points_ids = np.where(count==current_pick_min)[0]
-            if self.verbose:
-                print(current_pick_min, self.min_pick_per_point, possible_points_ids.shape[0],"/",self.xyzrgb.shape[0])
-            
-            # if no points: update the current indice
-            if(possible_points_ids.shape[0]==0):
-                current_pick_min += 1
-                if current_pick_min == self.min_pick_per_point:
-                    break
-                continue
-            
-            # pick a point
-            pt_id = random.randint(0, possible_points_ids.shape[0]-1)
-            pt = self.xyzrgb[possible_points_ids[pt_id]]
-            mask = self.compute_mask(pt, self.bs)
-            count[mask] += 1   
-
-            # save the point 
-            self.pts.append(pt)
-        
 
     def __getitem__(self, index):
 
         # get the data
         mask = self.compute_mask(self.pts[index], self.bs)
         pts = self.xyzrgb[mask]
-        lbs = self.labels[mask]
 
         # choose right number of points
         choice = np.random.choice(pts.shape[0], self.npoints, replace=True)
         pts = pts[choice]
 
-        # labels will indices in the original point cloud
+        # labels will contain indices in the original point cloud
         lbs = np.where(mask)[0][choice]
 
-        features = pts[:,3:] / 255 - 0.5
+        if self.nocolor:
+            features = np.ones((pts.shape[0], 1))
+        else:
+            features = pts[:,3:6] / 255 - 0.5
         pts = pts[:,:3].copy()
 
         # convert to torch
@@ -239,7 +218,8 @@ class PartDatasetTest():
         return pts, fts, lbs
 
     def __len__(self):
-        return len(self.pts)
+        # return len(self.pts)
+        return self.pts.shape[0]
 
 
 def train(args, flist_train, flist_test):
@@ -248,7 +228,10 @@ def train(args, flist_train, flist_test):
 
     # create the network
     print("Creating network...")
-    net = Net(input_channels=3, output_channels=N_CLASSES)
+    if args.nocolor:
+        net = Net(input_channels=1, output_channels=N_CLASSES)
+    else:
+        net = Net(input_channels=3, output_channels=N_CLASSES)
     net.cuda()
     print("parameters", count_parameters(net))
 
@@ -256,14 +239,14 @@ def train(args, flist_train, flist_test):
     print("Creating dataloader and optimizer...")
     ds = PartDatasetTrainVal(flist_train, args.rootdir,
                              training=True, block_size=args.blocksize,
-                             npoints=args.npoints,iteration_number=args.batchsize*args.iter)
+                             npoints=args.npoints,iteration_number=args.batchsize*args.iter, nocolor=args.nocolor)
     train_loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=True,
                                         num_workers=args.threads
                                         )
 
     ds_val = PartDatasetTrainVal(flist_test, args.rootdir,
                              training=False, block_size=args.blocksize,
-                             npoints=args.npoints)
+                             npoints=args.npoints, nocolor=args.nocolor)
     test_loader = torch.utils.data.DataLoader(ds_val, batch_size=args.batchsize, shuffle=False,
                                         num_workers=args.threads
                                         )
@@ -274,35 +257,19 @@ def train(args, flist_train, flist_test):
     # create the root folder
     print("Creating results folder")
     time_string = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    root_folder = os.path.join(args.savedir, "s3dis_area{}_{}_{}".format(args.area, args.npoints, time_string))
+    root_folder = os.path.join(args.savedir, "s3dis_area{}_{}_nocolor{}_{}".format(args.area, args.npoints, args.nocolor, time_string))
     os.makedirs(root_folder, exist_ok=True)
     print("done at", root_folder)
     
     # create the log file
     logs = open(os.path.join(root_folder, "log.txt"), "w")
 
-
-    weights = torch.ones(N_CLASSES).float().cuda()
     # iterate over epochs
-    for epoch in range(100):
+    for epoch in range(50):
 
         #######
         # training
         net.train()
-
-        # if epoch==0:
-        #     weights = torch.ones(N_CLASSES).float().cuda()
-        # else:
-        #     # use the previous epoch to define next weights
-        #     w_tmp = cm.sum(axis=1)
-        #     w_med = np.median(w_tmp[w_tmp>0])
-        #     w_tmp[w_tmp==0] = 1
-        #     w_tmp = w_med/w_tmp
-        #     if epoch==1: # define from previous
-        #         weights = torch.from_numpy(w_tmp).float().cuda()
-        #     else:
-        #         weights = 0.9*weights + 0.1*torch.from_numpy(w_tmp).float().cuda()
-
 
         train_loss = 0
         cm = np.zeros((N_CLASSES, N_CLASSES))
@@ -315,7 +282,7 @@ def train(args, flist_train, flist_test):
             
             optimizer.zero_grad()
             outputs = net(features, pts)
-            loss =  F.cross_entropy(outputs.view(-1, N_CLASSES), seg.view(-1), weight=weights)
+            loss =  F.cross_entropy(outputs.view(-1, N_CLASSES), seg.view(-1))
             loss.backward()
             optimizer.step()
 
@@ -333,12 +300,6 @@ def train(args, flist_train, flist_test):
 
             t.set_postfix(OA=wblue(oa), AA=wblue(aa), IOU=wblue(iou), LOSS=wblue(f"{train_loss/cm.sum():.4e}"))
 
-
-            average_iou, w_tmp = metrics.stats_iou_per_class(cm)
-            w_tmp[w_tmp==0] = 1
-            w_tmp = average_iou / w_tmp
-            alpha = 1e-4
-            weights = (1-alpha)*weights + alpha*torch.from_numpy(w_tmp).float().cuda()
 
         ######
         ## validation
@@ -388,7 +349,10 @@ def test(args, flist_test):
 
     # create the network
     print("Creating network...")
-    net = Net(input_channels=3, output_channels=N_CLASSES)
+    if args.nocolor:
+        net = Net(input_channels=1, output_channels=N_CLASSES)
+    else:    
+        net = Net(input_channels=3, output_channels=N_CLASSES)
     net.load_state_dict(torch.load(os.path.join(args.savedir, "state_dict.pth")))
     net.cuda()
     net.eval()
@@ -399,7 +363,9 @@ def test(args, flist_test):
         ds = PartDatasetTest(filename, args.rootdir,
                             block_size=args.blocksize,
                             min_pick_per_point= args.npick,
-                            npoints= args.npoints
+                            npoints= args.npoints,
+                            test_step=args.test_step,
+                            nocolor=args.nocolor
                             )
         loader = torch.utils.data.DataLoader(ds, batch_size=args.batchsize, shuffle=False,
                                         num_workers=args.threads
@@ -456,6 +422,8 @@ def main():
     parser.add_argument("--threads", default=2, type=int)
     parser.add_argument("--npick", default=16, type=int)
     parser.add_argument("--savepts", action="store_true")
+    parser.add_argument("--nocolor", action="store_true")
+    parser.add_argument("--test_step", default=0.2, type=float)
     args = parser.parse_args()
 
 

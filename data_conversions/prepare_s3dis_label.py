@@ -37,13 +37,15 @@ for Area in path_Dir_Areas:
         continue
     path_Dir_Rooms = os.listdir(os.path.join(BASE_DIR,Area))
     for Room in path_Dir_Rooms:
+
+
         xyz_Room = np.zeros((1,6))
         label_Room = np.zeros((1,1))
         path_Annotations = os.path.join(BASE_DIR,Area,Room,"Annotations")
         if not os.path.exists(path_Annotations):
             print("Error {} does not exists".format(path_Annotations))
             continue
-
+        
         print(path_Annotations)
         # make store directories
         # path_prepare_label = os.path.join("../../../data/S3DIS/prepare_label_rgb",Area,Room)
@@ -66,7 +68,7 @@ for Area in path_Dir_Areas:
         xyz_Room = np.delete(xyz_Room,[0],0)
         label_Room = np.delete(label_Room,[0],0)
 
-        np.save(path_prepare_label+"/xyzrgb.npy",xyz_Room)
+        np.save(path_prepare_label+"/xyzrgb.npy",xyz_Room.astype(np.float16))
         np.save(path_prepare_label+"/label.npy",label_Room)
 
 
