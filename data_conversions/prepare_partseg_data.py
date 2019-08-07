@@ -13,7 +13,7 @@ import numpy as np
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import data_utils
+import utils.data_utils as data_utils
 
 
 def main():
