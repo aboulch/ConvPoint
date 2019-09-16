@@ -65,8 +65,8 @@ GlobalTags.legacy_layer_base(True)
 ```
 
 ## Examples
-* [ModelNet40](examples/modelnet40/)
+* [ModelNet40](examples/modelnet/)
 * [ShapeNet](examples/shapenet/)
 * [S3DIS](examples/s3dis/)
 * [Semantic3D](examples/semantic3d)
-* [NPM3D](exampels/npm3d)
+* [NPM3D](examples/npm3d)
