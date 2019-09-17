@@ -40,7 +40,6 @@ def wblue(str):
 def wgreen(str):
     return bcolors.OKGREEN+str+bcolors.ENDC
 
-
 def nearest_correspondance(pts_src, pts_dest, data_src, K=1):
     print(pts_dest.shape)
     indices = nearest_neighbors.knn(pts_src, pts_dest, K, omp=True)
@@ -284,10 +283,8 @@ def main():
     # create model
     print("Creating the network...", end="", flush=True)
     if args.nocolor:
-        # net = Net(input_channels=1, output_channels=N_CLASSES)
         net = get_model(args.model, input_channels=1, output_channels=N_CLASSES, args=args)
     else:
-        # net = Net(input_channels=3, output_channels=N_CLASSES)
         net = get_model(args.model, input_channels=3, output_channels=N_CLASSES, args=args)
     if args.test:
         net.load_state_dict(torch.load(os.path.join(args.savedir, "state_dict.pth")))

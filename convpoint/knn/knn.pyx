@@ -92,8 +92,8 @@ def knn_batch(pts, queries, K, omp=False):
     # create indices tensor
     indices = np.zeros((pts.shape[0], queries.shape[1], K), dtype=np.int64)
 
-    pts_cpp = pts.astype(np.float32)
-    queries_cpp = queries.astype(np.float32)
+    pts_cpp = pts
+    queries_cpp = queries
     indices_cpp = indices
 
     # normal estimation
@@ -133,8 +133,8 @@ def knn_batch_distance_pick(pts, nqueries, K, omp=False):
     indices = np.zeros((pts.shape[0], nqueries, K), dtype=np.long)
     queries = np.zeros((pts.shape[0], nqueries, dim), dtype=np.float32)
 
-    pts_cpp = pts.astype(np.float32)
-    queries_cpp = queries.astype(np.float32)
+    pts_cpp = pts
+    queries_cpp = queries
     indices_cpp = indices
 
     if omp:
