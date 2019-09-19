@@ -17,7 +17,6 @@ This repository propose python scripts for point cloud classification and segmen
 A preprint of the paper can be found on Arxiv:  
 http://arxiv.org/abs/1904.02375
 
-
 ## License
 
 Code is released under dual license depending on applications, research or commercial. Reseach license is GPLv3.
@@ -36,6 +35,10 @@ If you use this code in your research, please consider citing:
   year={2019}
 }
 ```
+
+## Platform
+
+The code was tested on Ubuntu 16.04 with Anaconda.
 
 ## Dependencies
 
