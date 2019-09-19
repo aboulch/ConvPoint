@@ -42,7 +42,7 @@ def wgreen(str):
 
 def nearest_correspondance(pts_src, pts_dest, data_src, K=1):
     print(pts_dest.shape)
-    indices = nearest_neighbors.knn(pts_src, pts_dest, K, omp=True)
+    indices = nearest_neighbors.knn(pts_src.copy(), pts_dest.copy(), K, omp=True)
     print(indices.shape)
     if K==1:
         indices = indices.ravel()

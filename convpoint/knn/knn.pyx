@@ -52,8 +52,8 @@ def knn(pts, queries, K, omp=False):
     # create indices tensor
     indices = np.zeros((queries.shape[0], K), dtype=np.int64)
 
-    pts_cpp = pts.astype(np.float32)
-    queries_cpp = queries.astype(np.float32)
+    pts_cpp = np.ascontiguousarray(pts, dtype=np.float32)
+    queries_cpp = np.ascontiguousarray(queries, dtype=np.float32)
     indices_cpp = indices
 
     # normal estimation
