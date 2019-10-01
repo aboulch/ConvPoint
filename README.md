@@ -33,7 +33,6 @@ If you use this code in your research, please consider citing:
 ```
 @inproceedings {or.20191064,
 booktitle = {Eurographics Workshop on 3D Object Retrieval},
-editor = {Biasotti, Silvia and Lavoué, Guillaume and Veltkamp, Remco},
 title = {{Generalizing Discrete Convolutions for Unstructured Point Clouds}},
 author = {Boulch, Alexandre},
 year = {2019},
