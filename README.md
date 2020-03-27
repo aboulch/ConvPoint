@@ -14,6 +14,9 @@
 
 This repository propose python scripts for point cloud classification and segmentation. The library is coded with PyTorch.
 
+The journal paper is here:
+http://www.sciencedirect.com/science/article/pii/S0097849320300224
+
 The conference paper is here:
 https://diglib.eg.org/handle/10.2312/3dor20191064
 
@@ -28,18 +31,18 @@ See the [license](LICENSE.md).
 ## Citation
 
 If you use this code in your research, please consider citing:
-(citation will be updated as soon as 3DOR proceedings will be released)
 
 ```
-@inproceedings {or.20191064,
-booktitle = {Eurographics Workshop on 3D Object Retrieval},
-title = {{Generalizing Discrete Convolutions for Unstructured Point Clouds}},
-author = {Boulch, Alexandre},
-year = {2019},
-publisher = {The Eurographics Association},
-ISSN = {1997-0471},
-ISBN = {978-3-03868-077-2},
-DOI = {10.2312/3dor.20191064}
+@article{BOULCH202024,
+title = "ConvPoint: Continuous convolutions for point cloud processing",
+journal = "Computers & Graphics",
+volume = "88",
+pages = "24 - 34",
+year = "2020",
+issn = "0097-8493",
+doi = "https://doi.org/10.1016/j.cag.2020.02.005",
+url = "http://www.sciencedirect.com/science/article/pii/S0097849320300224",
+author = "Alexandre Boulch",
 }
 ```
 
