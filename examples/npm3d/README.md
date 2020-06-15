@@ -49,3 +49,9 @@ python npm33d_seg_fusion.py --rootdir path_to_data_processed --savedir path_to_s
 ```
 python npm3d_seg_fusion.py --rootdir path_to_data_processeed --savedir path_to_save_dirctory --model_rgb path_to_rgb_model_directory --model_noc path_to_no_color_model_directory --test --savepts
 ```
+
+## Pretrained models
+
+Pretrained models can be found [here](https://github.com/aboulch/ConvPoint/releases/download/0.1.0/models_NPM3D_v0.zip).
+
+**Note**: due to change of affiliation and loss of data, these models are given as they are, without any performance guarantee. Particularly, they may not be the ones used in the final version of the paper.
