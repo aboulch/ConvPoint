@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class NetS3DISFusion(nn.Module):
+class NetFusion(nn.Module):
     def __init__(self, input_channels, output_channels, dimension=3):
-        super(NetS3DISFusion, self).__init__()
+        super(NetFusion, self).__init__()
 
         n_centers = 16
 
