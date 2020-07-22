@@ -20,14 +20,15 @@ import torch.utils.data
 
 import utils.metrics as metrics
 
-def get_data(rootdir, files):
 
+def get_data(rootdir, files):
+#read all file in rootdir
     train_filenames = []
     for line in open(os.path.join(rootdir, files), "r"):
         line = line.split("\n")[0]
         line = os.path.basename(line)
         train_filenames.append(os.path.join(rootdir, line))
-
+#
     data = []
     labels = []
     for filename in train_filenames:
