@@ -64,10 +64,10 @@ All these dependencies can be install via conda in an Anaconda environment or vi
 
 ### Nearest neighbor module
 
-The ```nearest_neighbors``` directory contains a very small wrapper for [NanoFLANN](https://github.com/jlblancoc/nanoflann) with OpenMP.
+The ```convpoint/knn``` directory contains a very small wrapper for [NanoFLANN](https://github.com/jlblancoc/nanoflann) with OpenMP.
 To compile the module:
 ```
-cd nearest_neighbors
+cd convpoint/knn
 python setup.py install --home="."
 ```
 
